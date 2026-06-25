@@ -23,8 +23,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
-import textwrap
 import time
 
 # Ensure project root is on sys.path
@@ -54,11 +52,17 @@ def _sequences_to_pytest_source(sequences: list, ruleset: str) -> str:
     """
     Convert *sequences* into a self-contained pytest module string.
     Each sequence becomes one test function.
+
+    Note: sys.path uses os.getcwd() so that mutmut can run this from its
+    mutants/ sandbox directory and import the mutated engine correctly.
     """
     lines = [
         "import sys, os",
-        f"sys.path.insert(0, {repr(ROOT)})",
-        "from src.tennis_engine import TennisMatch",
+        "# mutmut v3 trampoline requires module to be imported as 'tennis_engine'",
+        "# (not 'src.tennis_engine'). Add src/ subdir to path so the import works",
+        "# both in the project root and in mutmut's mutants/ sandbox.",
+        "sys.path.insert(0, os.path.join(os.getcwd(), 'src'))",
+        "from tennis_engine import TennisMatch",
         "",
     ]
     for i, seq in enumerate(sequences):
@@ -77,47 +81,41 @@ def _sequences_to_pytest_source(sequences: list, ruleset: str) -> str:
     return "\n".join(lines)
 
 
+_TEMP_TEST_FILE = os.path.join(ROOT, "tests", "test_generated_temp.py")
+_MUTMUT_CACHE   = os.path.join(ROOT, ".mutmut-cache")
+_MUTANTS_DIR    = os.path.join(ROOT, "mutants")
+
+
 def compute_mutation_score(sequences: list, ruleset: str) -> float:
     """
-    Generate a temporary pytest file from *sequences*, run mutmut against
-    src/tennis_engine.py using that file as the test suite, and return
-    the mutation score in [0, 1].
+    Write *sequences* to tests/test_generated_temp.py, run mutmut v3
+    against src/tennis_engine.py, parse results, return mutation score.
 
     Returns 0.0 on any error.
     """
-    tmp_dir = tempfile.mkdtemp(prefix="mutmut_run_")
     try:
-        # Write generated tests into tmp dir
         test_src = _sequences_to_pytest_source(sequences, ruleset)
-        test_file = os.path.join(tmp_dir, "test_generated.py")
-        with open(test_file, "w") as f:
+        with open(_TEMP_TEST_FILE, "w") as f:
             f.write(test_src)
 
-        # mutmut needs to run from the project root; we tell it which paths to mutate.
-        # We invoke mutmut run then mutmut results.
         env = os.environ.copy()
-        env["PYTHONPATH"] = ROOT
 
-        mutmut_cmd = [
-            sys.executable, "-m", "mutmut", "run",
-            "--paths-to-mutate", os.path.join(ROOT, "src", "tennis_engine.py"),
-            "--tests-dir", tmp_dir,
-            "--runner",
-            f"{sys.executable} -m pytest {tmp_dir} -x -q --tb=no",
-            "--no-progress",
-        ]
+        # Delete only the results cache; keep mutants/ dir (same source = same mutants)
+        if os.path.exists(_MUTMUT_CACHE):
+            os.remove(_MUTMUT_CACHE)
 
+        # Run mutmut (config in setup.cfg: source_paths + pytest_add_cli_args_test_selection)
         subprocess.run(
-            mutmut_cmd,
+            [sys.executable, "-m", "mutmut", "run"],
             cwd=ROOT,
             env=env,
             capture_output=True,
             timeout=300,
         )
 
-        # Retrieve results
+        # Retrieve results (--all True → show killed + survived)
         result = subprocess.run(
-            [sys.executable, "-m", "mutmut", "results"],
+            [sys.executable, "-m", "mutmut", "results", "--all", "true"],
             cwd=ROOT,
             env=env,
             capture_output=True,
@@ -125,45 +123,34 @@ def compute_mutation_score(sequences: list, ruleset: str) -> float:
             timeout=60,
         )
 
-        output = result.stdout + result.stderr
-        score = _parse_mutation_score(output)
+        score = _parse_mutation_score(result.stdout + result.stderr)
         return score
 
     except Exception as e:
         print(f"  [mutation score] error: {e}", file=sys.stderr)
         return 0.0
     finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        # Clean mutmut cache between runs to avoid stale state
-        cache = os.path.join(ROOT, ".mutmut-cache")
-        if os.path.exists(cache):
-            os.remove(cache)
+        # Clean up temp test file and results cache; keep mutants/ dir
+        if os.path.exists(_TEMP_TEST_FILE):
+            os.remove(_TEMP_TEST_FILE)
+        if os.path.exists(_MUTMUT_CACHE):
+            os.remove(_MUTMUT_CACHE)
 
 
 def _parse_mutation_score(output: str) -> float:
     """
-    Parse mutmut results output to extract mutation score.
+    Parse mutmut v3 results output.
 
-    mutmut results output contains lines like:
-      Killed 42 out of 55
-    or summary sections. We parse the numbers directly.
+    mutmut results --all outputs lines like:
+        mutant_name: killed
+        mutant_name: survived
+        mutant_name: not checked
+    We count killed / (killed + survived) ignoring "not checked".
     """
-    import re
-    # Pattern: "Killed X out of Y"
-    m = re.search(r"Killed\s+(\d+)\s+out\s+of\s+(\d+)", output, re.IGNORECASE)
-    if m:
-        killed = int(m.group(1))
-        total  = int(m.group(2))
-        return killed / total if total > 0 else 0.0
-
-    # Alternative: count lines tagged as "survived" vs total mutants
-    survived = len(re.findall(r"survived", output, re.IGNORECASE))
-    killed   = len(re.findall(r"^--- ", output, re.MULTILINE))  # diff blocks = killed
-    total    = survived + killed
-    if total > 0:
-        return killed / total
-
-    return 0.0
+    killed   = output.count(": killed")
+    survived = output.count(": survived")
+    total    = killed + survived
+    return killed / total if total > 0 else 0.0
 
 
 # ---------------------------------------------------------------------------
