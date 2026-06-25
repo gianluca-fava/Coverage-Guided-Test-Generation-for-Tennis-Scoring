@@ -1,0 +1,31 @@
+=== Statistical Summary ===
+
+  ruleset          metric               pair  median_A  median_B  p_value    A12     effect
+wimbledon branch_coverage   search vs random    0.7727    0.7727 0.160802 0.4667 negligible
+wimbledon branch_coverage search vs ablation    0.7727    0.7727 0.048194 0.5967      small
+wimbledon  mutation_score   search vs random    0.1136    0.1266 0.000000 0.1244      large
+wimbledon  mutation_score search vs ablation    0.1136    0.1136 0.177137 0.5961      small
+   usopen branch_coverage   search vs random    0.7576    0.7576 0.160802 0.4667 negligible
+   usopen branch_coverage search vs ablation    0.7576    0.7576 0.048194 0.5967      small
+   usopen  mutation_score   search vs random    0.1136    0.1266 0.000000 0.1289      large
+   usopen  mutation_score search vs ablation    0.1136    0.1136 0.182295 0.5956      small
+  ausopen branch_coverage   search vs random    0.7727    0.7727 0.160802 0.4667 negligible
+  ausopen branch_coverage search vs ablation    0.7727    0.7727 0.048194 0.5967      small
+  ausopen  mutation_score   search vs random    0.1136    0.1266 0.000000 0.1367      large
+  ausopen  mutation_score search vs ablation    0.1136    0.1136 0.172254 0.5972      small
+
+=== Branch Coverage Medians ===
+
+ruleset     ausopen    usopen  wimbledon
+generator                               
+ablation   0.772727  0.757576   0.772727
+random     0.772727  0.757576   0.772727
+search     0.772727  0.757576   0.772727
+
+=== Mutation Score Medians ===
+
+ruleset     ausopen    usopen  wimbledon
+generator                               
+ablation   0.113636  0.113636   0.113636
+random     0.126623  0.126623   0.126623
+search     0.113636  0.113636   0.113636
