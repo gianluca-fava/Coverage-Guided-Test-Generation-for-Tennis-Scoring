@@ -157,8 +157,14 @@ def _parse_mutation_score(output: str) -> float:
 # Main loop
 # ---------------------------------------------------------------------------
 
-def run_all(n_seeds: int, budget: int, out_path: str) -> None:
+def run_all(n_seeds: int, budget: int, out_path: str,
+            generator_filter: list = None) -> None:
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+    generators = {
+        k: v for k, v in GENERATORS.items()
+        if generator_filter is None or k in generator_filter
+    }
 
     # Open CSV (write header if new file)
     file_exists = os.path.exists(out_path)
@@ -167,10 +173,10 @@ def run_all(n_seeds: int, budget: int, out_path: str) -> None:
         if not file_exists:
             writer.writeheader()
 
-        total_runs = len(GENERATORS) * len(RULESETS) * n_seeds
+        total_runs = len(generators) * len(RULESETS) * n_seeds
         run_idx = 0
 
-        for gen_name, gen_module in GENERATORS.items():
+        for gen_name, gen_module in generators.items():
             for ruleset in RULESETS:
                 for seed in range(n_seeds):
                     run_idx += 1
@@ -227,13 +233,18 @@ def main():
                         help="Output CSV path")
     parser.add_argument("--smoke",  action="store_true",
                         help="Quick smoke test: --n 3")
+    parser.add_argument("--generators", nargs="+", choices=list(GENERATORS.keys()),
+                        default=None,
+                        help="Run only these generators (default: all)")
     args = parser.parse_args()
 
     if args.smoke:
         args.n = 3
 
-    print(f"Experiment settings: n={args.n}, budget={args.budget}, out={args.out}")
-    run_all(n_seeds=args.n, budget=args.budget, out_path=args.out)
+    print(f"Experiment settings: n={args.n}, budget={args.budget}, out={args.out}, "
+          f"generators={args.generators or 'all'}")
+    run_all(n_seeds=args.n, budget=args.budget, out_path=args.out,
+            generator_filter=args.generators)
     print(f"\nDone. Results written to {args.out}")
 
 

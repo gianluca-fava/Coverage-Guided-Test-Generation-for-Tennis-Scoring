@@ -50,10 +50,12 @@ def _mutate(seq: list, rng: random.Random, min_len: int = 4, max_len: int = 400)
             seq.pop(idx)
 
     elif op == 3:
-        # Extend with a short random suffix
-        extra = rng.randint(1, min(10, max_len - len(seq)))
-        for _ in range(max(0, extra)):
-            seq.append(rng.choice(["A", "B"]))
+        # Extend with a short random suffix (only if there is room)
+        room = max_len - len(seq)
+        if room >= 1:
+            extra = rng.randint(1, min(10, room))
+            for _ in range(extra):
+                seq.append(rng.choice(["A", "B"]))
 
     else:
         # Replace a random contiguous block

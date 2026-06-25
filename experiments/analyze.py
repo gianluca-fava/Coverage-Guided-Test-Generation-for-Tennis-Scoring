@@ -86,7 +86,8 @@ def _boxplot(data_dict: dict, title: str, ylabel: str, out_path: str) -> None:
     values = [data_dict[k] for k in labels]
     colors = [GENERATOR_COLORS.get(k, "#888888") for k in labels]
 
-    bplot = ax.boxplot(values, patch_artist=True, notch=False, vert=True,
+    bplot = ax.boxplot(values, patch_artist=True, notch=False,
+                       orientation="vertical",
                        medianprops=dict(color="black", linewidth=2))
     for patch, color in zip(bplot["boxes"], colors):
         patch.set_facecolor(color)
