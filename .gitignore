@@ -13,3 +13,9 @@ build/
 .DS_Store
 *.log
 mutants/
+.tools/
+.idea/
+.claude/
+# Local run log: kept locally as an artifact but never tracked (contained a
+# personal absolute path); regenerate locally if needed.
+results/experiment_log.txt

@@ -41,42 +41,125 @@ GENERATORS = {
 RULESETS = ["wimbledon", "usopen", "ausopen"]
 
 RESULTS_DIR = os.path.join(ROOT, "results")
-CSV_HEADER = ["generator", "ruleset", "seed", "branch_coverage", "mutation_score", "time_sec"]
+CSV_HEADER = ["generator", "ruleset", "seed", "budget", "branch_coverage", "mutation_score", "time_sec"]
 
 
 # ---------------------------------------------------------------------------
 # Mutation score
 # ---------------------------------------------------------------------------
 
+_PYTEST_HEADER = '''import sys, os
+import pytest
+# mutmut v3 trampoline requires module to be imported as 'tennis_engine'
+# (not 'src.tennis_engine'). Add src/ subdir to path so the import works
+# both in the project root and in mutmut's mutants/ sandbox.
+sys.path.insert(0, os.path.join(os.getcwd(), 'src'))
+from tennis_engine import TennisMatch
+
+# ---------------------------------------------------------------------------
+# Strong oracle based on CONTRACT invariants.
+#
+# We deliberately avoid a regression oracle (hard-coded expected scores): for
+# generated sequences we do not know the expected values a priori. Instead we
+# assert state invariants that a correct engine ALWAYS satisfies and that a
+# mutant tends to violate. These are checked after EVERY play_point.
+# ---------------------------------------------------------------------------
+
+_EXPECTED_KEYS = {"points", "games", "sets", "in_tiebreak", "is_over", "winner"}
+_POINT_TOKENS = {"0", "15", "30", "40", "Ad"}
+
+
+def _check_invariants(m):
+    """Assert all contract invariants on the current match state. Return score()."""
+    s = m.score()
+
+    # --- exact key set ---
+    assert set(s.keys()) == _EXPECTED_KEYS
+
+    points, games, sets = s["points"], s["games"], s["sets"]
+    assert set(points.keys()) == {"A", "B"}
+    assert set(games.keys()) == {"A", "B"}
+    assert set(sets.keys()) == {"A", "B"}
+
+    # --- sets: ints in [0, 2] (best of 3), total never exceeds 3 ---
+    assert isinstance(sets["A"], int) and isinstance(sets["B"], int)
+    assert 0 <= sets["A"] <= 2 and 0 <= sets["B"] <= 2
+    assert sets["A"] + sets["B"] <= 3
+
+    # --- games: non-negative ints, never above 7 (7-5 or 7-6 closes a set) ---
+    assert isinstance(games["A"], int) and isinstance(games["B"], int)
+    assert 0 <= games["A"] <= 7 and 0 <= games["B"] <= 7
+
+    # --- flags are real bools ---
+    assert isinstance(s["in_tiebreak"], bool)
+    assert isinstance(s["is_over"], bool)
+
+    # --- points: regular game tokens, or non-negative ints during tie-break ---
+    if s["in_tiebreak"]:
+        assert points["A"].isdigit() and points["B"].isdigit()
+    else:
+        assert points["A"] in _POINT_TOKENS and points["B"] in _POINT_TOKENS
+
+    # --- winner consistency with is_over ---
+    if s["is_over"]:
+        assert s["winner"] in ("A", "B")
+    else:
+        assert s["winner"] is None
+
+    return s
+
+
+def test_invalid_winner_raises():
+    m = TennisMatch("wimbledon")
+    with pytest.raises(ValueError):
+        m.play_point("X")
+
+
+def test_invalid_ruleset_raises():
+    with pytest.raises(ValueError):
+        TennisMatch("badruleset")
+'''
+
+
 def _sequences_to_pytest_source(sequences: list, ruleset: str) -> str:
     """
     Convert *sequences* into a self-contained pytest module string.
-    Each sequence becomes one test function.
+    Each sequence becomes one test function that replays the points and, after
+    every play_point, asserts the contract invariants via _check_invariants.
 
     Note: sys.path uses os.getcwd() so that mutmut can run this from its
     mutants/ sandbox directory and import the mutated engine correctly.
     """
-    lines = [
-        "import sys, os",
-        "# mutmut v3 trampoline requires module to be imported as 'tennis_engine'",
-        "# (not 'src.tennis_engine'). Add src/ subdir to path so the import works",
-        "# both in the project root and in mutmut's mutants/ sandbox.",
-        "sys.path.insert(0, os.path.join(os.getcwd(), 'src'))",
-        "from tennis_engine import TennisMatch",
-        "",
-    ]
+    lines = [_PYTEST_HEADER]
     for i, seq in enumerate(sequences):
         fn_name = f"test_seq_{i:05d}"
-        # Build a compact repr of the sequence
         seq_repr = repr(seq)
         lines.append(f"def {fn_name}():")
         lines.append(f"    seq = {seq_repr}")
         lines.append(f"    m = TennisMatch({repr(ruleset)})")
+        lines.append(f"    _check_invariants(m)")
+        # Track totals to assert monotonicity within a set. When the set total
+        # changes a new set started (or the match ended): reset the games
+        # baseline instead of comparing across the set boundary.
+        lines.append(f"    prev_sets = 0")
+        lines.append(f"    prev_games = 0")
         lines.append(f"    for winner in seq:")
         lines.append(f"        if m.is_over:")
         lines.append(f"            break")
         lines.append(f"        m.play_point(winner)")
-        lines.append(f"    assert m.score() is not None")
+        lines.append(f"        s = _check_invariants(m)")
+        lines.append(f"        cur_sets = s['sets']['A'] + s['sets']['B']")
+        lines.append(f"        cur_games = s['games']['A'] + s['games']['B']")
+        lines.append(f"        assert cur_sets >= prev_sets")
+        lines.append(f"        if cur_sets == prev_sets:")
+        lines.append(f"            assert cur_games >= prev_games")
+        lines.append(f"        prev_sets = cur_sets")
+        lines.append(f"        prev_games = cur_games")
+        # Terminal coherence: once over, a further point must raise RuntimeError.
+        lines.append(f"    if m.is_over:")
+        lines.append(f"        assert m.winner in ('A', 'B')")
+        lines.append(f"        with pytest.raises(RuntimeError):")
+        lines.append(f"            m.play_point('A')")
         lines.append("")
     return "\n".join(lines)
 
@@ -188,7 +271,23 @@ def run_all(n_seeds: int, budget: int, out_path: str,
 
                     t0 = time.perf_counter()
 
-                    # 1. Generate sequences
+                    # 1. Generate sequences.
+                    #
+                    # BUDGET SEMANTICS / FAIRNESS (see Threats to Validity):
+                    # `budget` is operationalised as the number of candidate
+                    # sequences a generator is allowed to consider, and ALL
+                    # generators return a suite of ~budget sequences — so the
+                    # final measured suites have the same SIZE. The difference
+                    # is the cost paid DURING generation: the coverage-guided
+                    # search executes the SUT once per fitness evaluation
+                    # (~budget extra SUT runs) to obtain the coverage signal,
+                    # whereas random/ablation perform 0 SUT runs while
+                    # generating. This extra information is the price of
+                    # guidance and is NOT charged to random; if anything it
+                    # favours the baseline, since at equal budget the guided
+                    # search returns FEWER unique sequences (mutation/elitism
+                    # produce duplicates). The comparison is therefore fair to
+                    # conservative w.r.t. the search generator.
                     sequences = gen_module.generate(
                         ruleset=ruleset,
                         budget=budget,
@@ -215,6 +314,7 @@ def run_all(n_seeds: int, budget: int, out_path: str,
                         "generator":      gen_name,
                         "ruleset":        ruleset,
                         "seed":           seed,
+                        "budget":         budget,
                         "branch_coverage": branch_cov,
                         "mutation_score":  mut_score,
                         "time_sec":        round(elapsed, 3),

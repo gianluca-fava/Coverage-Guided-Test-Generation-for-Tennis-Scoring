@@ -69,7 +69,10 @@ def measure_branch_coverage(sequences: list, ruleset: str) -> dict:
                 pass
     finally:
         cov.stop()
-        cov.save()
+        # NOTE: deliberately do NOT call cov.save(). The JSON report below is
+        # produced from the data this fresh Coverage instance holds in memory;
+        # save() would only persist a shared .coverage file on disk, which is an
+        # unnecessary artifact and a cross-run/cross-process leakage hazard.
 
     # --- Produce JSON report and parse it ---
     tmp_path = tempfile.mktemp(suffix=".json")

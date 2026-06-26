@@ -49,13 +49,18 @@
 
 ## Results format — `results/results.csv`
 
-Header: `generator,ruleset,seed,branch_coverage,mutation_score,time_sec`
+Header: `generator,ruleset,seed,budget,branch_coverage,mutation_score,time_sec`
 
 | Field | Values |
 |-------|--------|
 | `generator` | `"random"` \| `"search"` \| `"ablation"` |
 | `ruleset`   | `"wimbledon"` \| `"usopen"` \| `"ausopen"` |
 | `seed`      | integer |
+| `budget`    | integer (fitness-evaluation budget per run; two-regime design, e.g. `30` and `200`) |
 | `branch_coverage` | float [0, 1] |
 | `mutation_score`  | float [0, 1] |
 | `time_sec`  | float |
+
+> Historical rows produced before the two-regime design used the old 6-column
+> schema (without `budget`). Run `python -m experiments.migrate_csv` once to
+> upgrade an old `results.csv` to this format (it back-fills `budget=200`).

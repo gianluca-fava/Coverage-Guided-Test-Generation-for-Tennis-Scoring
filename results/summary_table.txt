@@ -1,31 +1,67 @@
-=== Statistical Summary ===
+=== Statistical Summary (per budget) ===
 
-  ruleset          metric               pair  median_A  median_B  p_value    A12     effect
-wimbledon branch_coverage   search vs random    0.7727    0.7727 0.160802 0.4667 negligible
-wimbledon branch_coverage search vs ablation    0.7727    0.7727 0.048194 0.5967      small
-wimbledon  mutation_score   search vs random    0.1136    0.1266 0.000000 0.1244      large
-wimbledon  mutation_score search vs ablation    0.1136    0.1136 0.177137 0.5961      small
-   usopen branch_coverage   search vs random    0.7576    0.7576 0.160802 0.4667 negligible
-   usopen branch_coverage search vs ablation    0.7576    0.7576 0.048194 0.5967      small
-   usopen  mutation_score   search vs random    0.1136    0.1266 0.000000 0.1289      large
-   usopen  mutation_score search vs ablation    0.1136    0.1136 0.182295 0.5956      small
-  ausopen branch_coverage   search vs random    0.7727    0.7727 0.160802 0.4667 negligible
-  ausopen branch_coverage search vs ablation    0.7727    0.7727 0.048194 0.5967      small
-  ausopen  mutation_score   search vs random    0.1136    0.1266 0.000000 0.1367      large
-  ausopen  mutation_score search vs ablation    0.1136    0.1136 0.172254 0.5972      small
+ budget   ruleset          metric               pair  median_A  median_B  p_value    A12     effect
+     20 wimbledon branch_coverage   search vs random    0.6818    0.7273 0.000549 0.2500      large
+     20 wimbledon branch_coverage search vs ablation    0.6818    0.6818 0.927193 0.5072 negligible
+     20 wimbledon  mutation_score   search vs random    0.3766    0.3977 0.000054 0.1967      large
+     20 wimbledon  mutation_score search vs ablation    0.3766    0.3799 0.514335 0.4506 negligible
+     20    usopen branch_coverage   search vs random    0.6818    0.7273 0.000383 0.2411      large
+     20    usopen branch_coverage search vs ablation    0.6818    0.6818 0.939693 0.5061 negligible
+     20    usopen  mutation_score   search vs random    0.3766    0.3977 0.000292 0.2278      large
+     20    usopen  mutation_score search vs ablation    0.3766    0.3799 0.614591 0.4617 negligible
+     20   ausopen branch_coverage   search vs random    0.6818    0.7273 0.000549 0.2500      large
+     20   ausopen branch_coverage search vs ablation    0.6818    0.6818 0.927193 0.5072 negligible
+     20   ausopen  mutation_score   search vs random    0.3766    0.3977 0.000054 0.1967      large
+     20   ausopen  mutation_score search vs ablation    0.3766    0.3799 0.514335 0.4506 negligible
+     60 wimbledon branch_coverage   search vs random    0.7273    0.7727 0.000162 0.2578      large
+     60 wimbledon branch_coverage search vs ablation    0.7273    0.7273 0.213765 0.5883      small
+     60 wimbledon  mutation_score   search vs random    0.4269    0.4351 0.070037 0.3639      small
+     60 wimbledon  mutation_score search vs ablation    0.4269    0.3994 0.000024 0.8178      large
+     60    usopen branch_coverage   search vs random    0.7348    0.7576 0.000768 0.2889      large
+     60    usopen branch_coverage search vs ablation    0.7348    0.7273 0.152069 0.6028      small
+     60    usopen  mutation_score   search vs random    0.4302    0.4351 0.253165 0.4139      small
+     60    usopen  mutation_score search vs ablation    0.4302    0.4010 0.000016 0.8244      large
+     60   ausopen branch_coverage   search vs random    0.7273    0.7727 0.000162 0.2578      large
+     60   ausopen branch_coverage search vs ablation    0.7273    0.7273 0.213765 0.5883      small
+     60   ausopen  mutation_score   search vs random    0.4269    0.4351 0.070037 0.3639      small
+     60   ausopen  mutation_score search vs ablation    0.4269    0.3994 0.000024 0.8178      large
+    200 wimbledon branch_coverage   search vs random    0.7727    0.7727 0.041865 0.4333      small
+    200 wimbledon branch_coverage search vs ablation    0.7727    0.7727 0.014765 0.6417     medium
+    200 wimbledon  mutation_score   search vs random    0.4481    0.4513 0.000406 0.2400      large
+    200 wimbledon  mutation_score search vs ablation    0.4481    0.4237 0.000000 0.8817      large
+    200    usopen branch_coverage   search vs random    0.7576    0.7576 0.041865 0.4333      small
+    200    usopen branch_coverage search vs ablation    0.7576    0.7576 0.013830 0.6433     medium
+    200    usopen  mutation_score   search vs random    0.4481    0.4513 0.000050 0.2028      large
+    200    usopen  mutation_score search vs ablation    0.4481    0.4253 0.000000 0.8806      large
+    200   ausopen branch_coverage   search vs random    0.7727    0.7727 0.041865 0.4333      small
+    200   ausopen branch_coverage search vs ablation    0.7727    0.7727 0.014765 0.6417     medium
+    200   ausopen  mutation_score   search vs random    0.4481    0.4513 0.000443 0.2422      large
+    200   ausopen  mutation_score search vs ablation    0.4481    0.4237 0.000000 0.8817      large
 
 === Branch Coverage Medians ===
 
-ruleset     ausopen    usopen  wimbledon
-generator                               
-ablation   0.772727  0.757576   0.772727
-random     0.772727  0.757576   0.772727
-search     0.772727  0.757576   0.772727
+ruleset            ausopen    usopen  wimbledon
+generator budget                               
+ablation  20      0.681818  0.681818   0.681818
+          60      0.727273  0.727273   0.727273
+          200     0.772727  0.757576   0.772727
+random    20      0.727273  0.727273   0.727273
+          60      0.772727  0.757576   0.772727
+          200     0.772727  0.757576   0.772727
+search    20      0.681818  0.681818   0.681818
+          60      0.727273  0.734848   0.727273
+          200     0.772727  0.757576   0.772727
 
 === Mutation Score Medians ===
 
-ruleset     ausopen    usopen  wimbledon
-generator                               
-ablation   0.113636  0.113636   0.113636
-random     0.126623  0.126623   0.126623
-search     0.113636  0.113636   0.113636
+ruleset            ausopen    usopen  wimbledon
+generator budget                               
+ablation  20      0.379870  0.379870   0.379870
+          60      0.399351  0.400974   0.399351
+          200     0.423701  0.425325   0.423701
+random    20      0.397727  0.397727   0.397727
+          60      0.435065  0.435065   0.435065
+          200     0.451299  0.451299   0.451299
+search    20      0.376623  0.376623   0.376623
+          60      0.426948  0.430195   0.426948
+          200     0.448052  0.448052   0.448052

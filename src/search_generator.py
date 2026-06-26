@@ -5,8 +5,9 @@ Algorithm (vocabulary aligned with course material):
   1. Initialise a population of random candidate sequences.
   2. For each generation:
        a. Execute each candidate against the engine.
-       b. Measure fitness: branch coverage gained over the *archive*
-          (set of already-covered branch arcs).
+       b. Measure fitness: branch arcs covered by the candidate, plus a bonus
+          for arcs that are new w.r.t. the running *archive*. The own-coverage
+          term keeps a selection gradient even after the archive saturates.
        c. Identify the most promising candidates (elitism + tournament).
        d. Mutate promising candidates to produce offspring.
        e. Update archive with newly covered branches.
@@ -86,14 +87,23 @@ def _crossover(a: list, b: list, rng: random.Random) -> list:
 # Fitness function
 # ---------------------------------------------------------------------------
 
-def _fitness(seq: list, archive_branches: set, ruleset: str) -> int:
+def _fitness(seq: list, archive_branches: set, ruleset: str):
     """
-    Fitness = number of NEW branch arcs covered by *seq* that are not yet
-    in *archive_branches*.
+    Fitness = (branch arcs covered by *seq*) + (arcs that are NEW w.r.t. the
+    running *archive_branches*).
+
+    The first term keeps a non-zero selection gradient even after the archive
+    saturates — essential on a small SUT where branch coverage saturates within
+    the first generation; the second term rewards sequences that reach arcs not
+    yet seen. (A fitness based on novelty alone collapses to 0 for every
+    candidate as soon as the archive fills, removing all selection pressure.)
+
+    Returns (fitness, covered_set).
     """
     result = measure_branch_coverage([seq], ruleset)
-    new_branches = set(map(tuple, result["covered_branches"])) - archive_branches
-    return len(new_branches), set(map(tuple, result["covered_branches"]))
+    covered = set(map(tuple, result["covered_branches"]))
+    novelty = len(covered - archive_branches)
+    return len(covered) + novelty, covered
 
 
 # ---------------------------------------------------------------------------
@@ -103,11 +113,12 @@ def _fitness(seq: list, archive_branches: set, ruleset: str) -> int:
 def generate(
     ruleset: str,
     budget: int = 200,
-    pop_size: int = 20,
+    pop_size: int = 8,
     elite_ratio: float = 0.3,
     min_len: int = 4,
     max_len: int = 400,
     seed: Optional[int] = None,
+    fitness_fn=None,
 ) -> list:
     """
     Search-based generator driven by branch coverage.
@@ -121,11 +132,17 @@ def generate(
     min_len    : int  — minimum sequence length
     max_len    : int  — maximum sequence length
     seed       : int | None
+    fitness_fn : callable | None — fitness function (seq, archive, ruleset) ->
+                 (score, covered_set). Defaults to the coverage-guided _fitness.
+                 The ablation variant injects a constant-0 fitness here so that
+                 it reuses THIS exact algorithm and differs ONLY in the fitness.
 
     Returns
     -------
     list[list[str]]  — all sequences accumulated in the archive
     """
+    if fitness_fn is None:
+        fitness_fn = _fitness
     rng = random.Random(seed)
     evaluations = 0
 
@@ -143,11 +160,14 @@ def generate(
         population.append(seq)
         evaluations += 1
 
-    # Seed archive with initial population coverage
+    # Record the initial population in the returned archive of sequences.
+    # IMPORTANT: do NOT pre-seed archive_branches with the whole population's
+    # coverage here. Doing so makes the novelty term of _fitness zero from the
+    # very first evaluation (the archive already contains everything the
+    # population covers), which kills the selection gradient and degenerates the
+    # search into the ablation/random walk. The covered-arc archive is filled
+    # incrementally inside the generational loop instead.
     if population:
-        init_result = measure_branch_coverage(population, ruleset)
-        for arc in init_result["covered_branches"]:
-            archive_branches.add(tuple(arc))
         archive_sequences.extend(population)
 
     # --- Generational loop ---
@@ -157,7 +177,7 @@ def generate(
         for seq in population:
             if evaluations >= budget:
                 break
-            fit, covered = _fitness(seq, archive_branches, ruleset)
+            fit, covered = fitness_fn(seq, archive_branches, ruleset)
             scored.append((fit, seq, covered))
             evaluations += 1
 
