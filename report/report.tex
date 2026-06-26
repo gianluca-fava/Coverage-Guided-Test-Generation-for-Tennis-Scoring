@@ -249,10 +249,13 @@ coverage, mutation score, and wall-clock time.
 For each (budget, ruleset, metric) we compare \texttt{search} against
 \texttt{random} and against \texttt{ablation} using the two-sided
 Mann--Whitney $U$ test ($\alpha=0.05$) and the Vargha--Delaney $A_{12}$ effect
-size~\cite{vargha2000critique,arcuri2014hitchhiker}. We report $A_{12}$ with the
-conventional thresholds negligible ($|A_{12}-0.5|<0.056$), small ($<0.14$),
-medium ($<0.21$) and large otherwise. $A_{12}>0.5$ favours \texttt{search};
-$A_{12}<0.5$ favours the comparison baseline.
+size~\cite{vargha2000critique,arcuri2014hitchhiker}. We classify $A_{12}$ with the
+effect-size thresholds adopted in the course: for $A_{12}>0.5$,
+$[0.50,0.56)$ is negligible, $[0.56,0.64)$ small, $[0.64,0.71)$ medium and
+$>0.71$ large; the bands are symmetric below $0.5$ (equivalently, negligible
+for $|A_{12}-0.5|<0.06$, small for $<0.14$, medium for $<0.21$, large
+otherwise). $A_{12}>0.5$ favours \texttt{search}; $A_{12}<0.5$ favours the
+comparison baseline.
 
 \paragraph{Threats to validity}
 \emph{Construct.} Branch coverage is a structural proxy and mutation score a
@@ -451,6 +454,30 @@ Limitations include a single small SUT and a mutation-agnostic fitness. Future
 work includes a mutation-aware fitness, a larger and harder SUT with rarely
 reached branches, and a denser sweep of intermediate budgets to locate the
 crossover, if any, between guided search and random testing.
+
+\section*{Contribution Statement}
+The initial design decisions---the choice of subject under test, the generators
+to compare, the evaluation metrics and the overall experimental design---were
+made jointly by both authors.
+\emph{Alessandro Ligugnana} implemented the initial version of the project: the
+tennis scoring engine (SUT), the random, search and ablation generators, the
+branch-coverage tool, the experiment runner and the sanity test suite.
+\emph{Gianluca Fava} carried out the empirical evaluation and its refinement:
+the invariant-based oracle for the generated tests, the two-regime
+(multi-budget) experimental design and the budget-aware statistical analysis,
+the diagnosis and correction of the coverage-guided fitness function and the
+corresponding clean ablation, the execution of the final experiments, and the
+writing of this report.
+
+\section*{Use of AI Tools}
+An AI coding assistant (Claude, Anthropic) was used to generate and refactor the
+implementation of the test generators, the invariant-based test oracle, the
+experimental pipeline and the statistical-analysis scripts, and to support the
+drafting of this report. All AI-generated code was reviewed, tested and
+validated by the authors. The algorithm design, the experimental protocol, the
+methodological decisions---including the hybrid multi-budget design and the
+choice to report the negative result honestly---and the interpretation of the
+findings are the authors' own work.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}
